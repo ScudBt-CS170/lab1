@@ -76,6 +76,7 @@ start(void)
 	for (i = 0; i < NPROCS; i++) {
 		proc_array[i].p_pid = i;
 		proc_array[i].p_state = P_EMPTY;
+		proc_array[i].p_wait = -1; // added for the new wait field
 	}
 
 	// The first process has process ID 1.
@@ -168,8 +169,13 @@ interrupt(registers_t *reg)
 		// before calling the system call.  The %eax REGISTER has
 		// changed by now, but we can read the APPLICATION's setting
 		// for this register out of 'current->p_registers'.
-		current->p_state = P_ZOMBIE;
+		current->p_state = P_EMPTY;
 		current->p_exit_status = current->p_registers.reg_eax;
+		cursorpos = console_printf(cursorpos, 0x0700, "waiting%d", current->p_wait);
+		if (current->p_wait != -1) {
+		  cursorpos = console_printf(cursorpos, 0x0700, "restart");
+		  proc_array[current->p_wait].p_state = P_RUNNABLE;
+		}
 		schedule();
 
 	case INT_SYS_WAIT: {
@@ -189,7 +195,12 @@ interrupt(registers_t *reg)
 		else if (proc_array[p].p_state == P_ZOMBIE)
 			current->p_registers.reg_eax = proc_array[p].p_exit_status;
 		else
-			current->p_registers.reg_eax = WAIT_TRYAGAIN;
+		  //current->p_registers.reg_eax = WAIT_TRYAGAIN;
+		        proc_array[p].p_wait = current->p_pid;
+		        cursorpos = console_printf(cursorpos, 0x0700, "caller%d", p);
+			cursorpos = console_printf(cursorpos, 0x0700, "exit%d", proc_array[p].p_exit_status);
+			current->p_registers.reg_eax = 1000;
+			current->p_state = P_BLOCKED; 
 		schedule();
 	}
 
@@ -242,18 +253,20 @@ do_fork(process_t *parent)
         
         int pdn = 1;
 	// find the first empty slot in the process array
-	while (proc_array[pdn].p_state == P_EMPTY){
+	while (proc_array[pdn].p_state != P_EMPTY){
 	  pdn++;
 	  if (pdn >= NPROCS){
-	    
+	    return -1;
 	  }
 	}
 	// set child pointer
 	process_t *child = &proc_array[pdn];
-	child->p_registers = parent->p_registers; 
+	child->p_registers = parent->p_registers;
 	copy_stack(child, parent);
-	// the other differnce is the pid 
-        child->p_pid = pdn;
+	// pass child return value 0 to return register eax
+	child->p_registers.reg_eax = 0;
+	// the other pd is the state
+	child->p_state = P_RUNNABLE;	
 	return pdn;
 }
 
@@ -312,17 +325,17 @@ copy_stack(process_t *dest, process_t *src)
 
 	// YOUR CODE HERE!
 
-	src_stack_top = src->p_registers.reg_ebp;/* YOUR CODE HERE */
+	src_stack_top = src->p_pid * PROC_STACK_SIZE + PROC1_STACK_ADDR;/* YOUR CODE HERE */
 	src_stack_bottom = src->p_registers.reg_esp;
-	dest_stack_top = dest->p_registers.reg_ebp; /* YOUR CODE HERE */
+	dest_stack_top = dest->p_pid * PROC_STACK_SIZE + PROC1_STACK_ADDR;/* YOUR CODE HERE */
 	dest_stack_bottom = dest_stack_top - src_stack_top + src_stack_bottom; /* YOUR CODE HERE: calculate based on the
 				 other variables */
 	// YOUR CODE HERE: memcpy the stack and set dest->p_registers.reg_esp
-	void *srcs = (void *)src_stack_top;
-	void *dests = (void *)dest_stack_top;
+	void *srcs = (void *)src_stack_bottom;
+	void *dests = (void *)dest_stack_bottom;
 	void *tmp = memcpy(dests, srcs, (src_stack_top - src_stack_bottom)); // length of copied memory is location between top & bottom divided by mem unit of stack
 	dest->p_registers.reg_esp = dest_stack_bottom;
-	app_printf("111");
+	//cursorpos = console_printf(cursorpos, 0x0700, "here");
 }
 
 
