@@ -172,6 +172,7 @@ interrupt(registers_t *reg)
 		current->p_state = P_EMPTY;
 		current->p_exit_status = current->p_registers.reg_eax;
 		cursorpos = console_printf(cursorpos, 0x0700, "waiting%d", current->p_wait);
+		// if another process is waiting, then toggle it to runnable
 		if (current->p_wait != -1) {
 		  cursorpos = console_printf(cursorpos, 0x0700, "restart");
 		  proc_array[current->p_wait].p_state = P_RUNNABLE;
@@ -199,7 +200,9 @@ interrupt(registers_t *reg)
 		        proc_array[p].p_wait = current->p_pid;
 		        cursorpos = console_printf(cursorpos, 0x0700, "caller%d", p);
 			cursorpos = console_printf(cursorpos, 0x0700, "exit%d", proc_array[p].p_exit_status);
+			// success message
 			current->p_registers.reg_eax = 1000;
+			// to wait
 			current->p_state = P_BLOCKED; 
 		schedule();
 	}
