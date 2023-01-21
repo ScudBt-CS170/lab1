@@ -239,8 +239,22 @@ do_fork(process_t *parent)
 	//                What should sys_fork() return to the child process?)
 	// You need to set one other process descriptor field as well.
 	// Finally, return the child's process ID to the parent.
-
-	return -1;
+        
+        int pdn = 1;
+	// find the first empty slot in the process array
+	while (proc_array[pdn].p_state == P_EMPTY){
+	  pdn++;
+	  if (pdn >= NPROCS){
+	    
+	  }
+	}
+	// set child pointer
+	process_t *child = &proc_array[pdn];
+	child->p_registers = parent->p_registers; 
+	copy_stack(child, parent);
+	// the other differnce is the pid 
+        child->p_pid = pdn;
+	return pdn;
 }
 
 static void
@@ -298,12 +312,17 @@ copy_stack(process_t *dest, process_t *src)
 
 	// YOUR CODE HERE!
 
-	src_stack_top = 0 /* YOUR CODE HERE */;
+	src_stack_top = src->p_registers.reg_ebp;/* YOUR CODE HERE */
 	src_stack_bottom = src->p_registers.reg_esp;
-	dest_stack_top = 0 /* YOUR CODE HERE */;
-	dest_stack_bottom = 0 /* YOUR CODE HERE: calculate based on the
-				 other variables */;
+	dest_stack_top = dest->p_registers.reg_ebp; /* YOUR CODE HERE */
+	dest_stack_bottom = dest_stack_top - src_stack_top + src_stack_bottom; /* YOUR CODE HERE: calculate based on the
+				 other variables */
 	// YOUR CODE HERE: memcpy the stack and set dest->p_registers.reg_esp
+	void *srcs = (void *)src_stack_top;
+	void *dests = (void *)dest_stack_top;
+	void *tmp = memcpy(dests, srcs, (src_stack_top - src_stack_bottom)); // length of copied memory is location between top & bottom divided by mem unit of stack
+	dest->p_registers.reg_esp = dest_stack_bottom;
+	app_printf("111");
 }
 
 

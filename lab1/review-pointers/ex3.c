@@ -14,7 +14,12 @@
 int
 array_sum(int *arr, int n)
 {
-	// TODO: Your code here.
-	assert(0);
-	return -1;
+	// iteratively add all values by incrementing index with loop
+        // declaring variables inside a for loop wasn't valid C until C99
+        int ans = 0;
+        int i = 0;
+        for (; i < n; i++) {
+	  ans += arr[i];
+        }
+	return ans;
 }
